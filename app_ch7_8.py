@@ -74,23 +74,25 @@ strands = {}
 for c in concepts:
     domains.setdefault(c["domain"], set()).add(c["strand"])
 
-# ---- Domain nodes (HEXAGON)
+
+# ---- Domain nodes (RECTANGLE, BIG, LABEL VISIBLE) ----
 for domain in domains:
-   nodes.append(Node(
-    id=f"domain::{domain}",
-    label=domain.replace(" (", "\n("),  # forces line break
-    shape="hexagon",
-    size=65,
-    color=DOMAIN_COLORS[domain],
-    font={
-        "size": 20,
-        "color": "white",
-        "face": "arial",
-        "align": "center",
-        "bold": True
-    },
-    widthConstraint=160
-))
+    nodes.append(Node(
+        id=f"domain::{domain}",
+        label=domain.replace(" (", "\n("),  # wrap text nicely
+        shape="box",                        # rectangle
+        size=80,                            # bigger than strands
+        color=DOMAIN_COLORS[domain],
+        font={
+            "size": 22,
+            "color": "white",
+            "face": "arial",
+            "align": "center",
+            "bold": True
+        },
+        widthConstraint=220,                # forces wide rectangle
+        heightConstraint=80
+    ))
 
 # ---- Strand nodes (ELLIPSE)
 for domain, strand_set in domains.items():
@@ -223,4 +225,5 @@ else:
         st.session_state.learned_concepts[grade].add(selected)
     else:
         st.session_state.learned_concepts[grade].discard(selected)
+
 
