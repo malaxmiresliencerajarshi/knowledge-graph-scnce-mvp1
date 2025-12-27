@@ -46,6 +46,15 @@ activities = data["activities"]
 concept_map = {c["concept_name"]: c for c in concepts}
 concept_names = set(concept_map.keys())
 
+# -----------------------------
+# Concepts that have activities
+# -----------------------------
+concepts_with_activities = {
+    a["parent_concept"]
+    for a in activities
+    if a.get("parent_concept")
+}
+
 # ----------------------------
 # Session state
 # ----------------------------
@@ -111,15 +120,18 @@ for (domain, strand) in strands:
 
 # Concept nodes
 for c in concepts:
-    nodes.append(
-        Node(
-            id=f"concept::{c['concept_name']}",
-            label=c["concept_name"],
-            size=18,
-            color=DOMAIN_COLORS.get(c["domain"], "#cccccc"),
-            shape="dot"
-        )
-    )
+    concept_name = c["concept_name"]
+    has_activity = concept_name in concepts_with_activities
+
+    nodes.append(Node(
+        id=f"concept::{concept_name}",
+        label=concept_name,
+        shape="dot",
+        size=18,
+        color=domain_color,                     # SAME domain color
+        borderColor="#1f2937" if has_activity else domain_color,
+        borderWidth=3 if has_activity else 1,
+    ))
 
 # ----------------------------
 # Build edges
@@ -254,5 +266,6 @@ if selected_concept:
 
 else:
     st.sidebar.info("Click a concept node to view details.")
+
 
 
