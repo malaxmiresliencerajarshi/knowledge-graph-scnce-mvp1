@@ -128,7 +128,7 @@ for c in concepts:
         label=concept_name,
         shape="dot",
         size=18,
-        color=domain_color,                     # SAME domain color
+        color=DOMAIN_COLORS,                     # SAME domain color
         borderColor="#1f2937" if has_activity else domain_color,
         borderWidth=3 if has_activity else 1,
     ))
@@ -266,6 +266,7 @@ if selected_concept:
 
 else:
     st.sidebar.info("Click a concept node to view details.")
+
 
 
 
