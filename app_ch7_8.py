@@ -208,7 +208,7 @@ if selected_concept:
 
     st.sidebar.markdown(f"### {selected_concept}")
 
-    # -------- Concept details dropdown --------
+    # -------- Concept details dropdown (CLOSED by default) --------
     with st.sidebar.expander("📘 Concept Details", expanded=False):
         st.markdown("**Brief Explanation**")
         st.write(concept.get("brief_explanation", "—"))
@@ -222,19 +222,6 @@ if selected_concept:
 
         st.markdown("**Cognitive Level**")
         st.write(concept.get("cognitive_level", "—"))
-
-    # -------- Mark as learned --------
-    learned = selected_concept in st.session_state.learned_concepts[grade]
-
-    checked = st.sidebar.checkbox(
-        "✅ Mark concept as learned",
-        value=learned
-    )
-
-    if checked:
-        st.session_state.learned_concepts[grade].add(selected_concept)
-    else:
-        st.session_state.learned_concepts[grade].discard(selected_concept)
 
     # -------- Activity details dropdown --------
     linked_activities = [
@@ -252,6 +239,20 @@ if selected_concept:
         else:
             st.write("No activities linked to this concept.")
 
+    # -------- Mark as learned (MOVED BELOW activities) --------
+    learned = selected_concept in st.session_state.learned_concepts[grade]
+
+    checked = st.sidebar.checkbox(
+        "✅ Mark concept as learned",
+        value=learned
+    )
+
+    if checked:
+        st.session_state.learned_concepts[grade].add(selected_concept)
+    else:
+        st.session_state.learned_concepts[grade].discard(selected_concept)
+
 else:
     st.sidebar.info("Click a concept node to view details.")
+
 
