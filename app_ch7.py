@@ -41,7 +41,7 @@ st.sidebar.header("🔍 Concept Details")
 
 selected_concept = st.session_state.get("selected_concept")
 
-if selected_concept and selected_concept in concept_names:
+if st.session_state.get("selected_concept") in concept_names:
     concept = next(
         (c for c in concepts if c["concept_name"] == selected_concept),
         None
@@ -134,22 +134,19 @@ config = Config(
 )
 
 # --------------------------------------------------
-# Render graph + FIX node click behavior
+# Render graph + FIX node click behavior (NO key)
 # --------------------------------------------------
 selected = agraph(
-    key="concept_graph",
     nodes=nodes,
     edges=edges,
     config=config
 )
 
-# --------------------------------------------------
-# Normalize agraph selection (FINAL, COMPLETE)
-# --------------------------------------------------
+# Normalize agraph output safely
 normalized_selection = None
 
 if isinstance(selected, dict):
-    # agraph sometimes returns {"nodes": [...], "edges": [...]}
+    # Example: {"nodes": ["Groundwater"], "edges": []}
     nodes_selected = selected.get("nodes", [])
     if nodes_selected:
         normalized_selection = nodes_selected[0]
@@ -160,10 +157,12 @@ elif isinstance(selected, list) and selected:
 elif isinstance(selected, str):
     normalized_selection = selected
 
-# Update session state ONLY if valid
-if normalized_selection in concept_names:
+# Force overwrite of selection every run
+if normalized_selection and normalized_selection in concept_names:
     st.session_state["selected_concept"] = normalized_selection
-elif selected is None:
+else:
+    # Explicitly clear when nothing valid is selected
     st.session_state["selected_concept"] = None
+
 
 
