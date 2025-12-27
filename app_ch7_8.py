@@ -223,17 +223,18 @@ if selected_concept:
 # ----------------------------
 # Mark as learned (grade-scoped)
 # ----------------------------
-learned = selected_concept in st.session_state.learned_concepts[grade]
+if selected_concept:
+    learned = selected_concept in st.session_state.learned_concepts[grade]
 
-checked = st.sidebar.checkbox(
-    "✅ Mark concept as learned",
-    value=learned
-)
+    checked = st.sidebar.checkbox(
+        "✅ Mark concept as learned",
+        value=learned
+    )
 
-if checked:
-    st.session_state.learned_concepts[grade].add(selected_concept)
-else:
-    st.session_state.learned_concepts[grade].discard(selected_concept)
+    if checked:
+        st.session_state.learned_concepts[grade].add(selected_concept)
+    else:
+        st.session_state.learned_concepts[grade].discard(selected_concept)
 
     # ----------------------------
     # Activities (lightweight)
@@ -252,5 +253,3 @@ else:
 
 else:
     st.sidebar.info("Click a concept node to view details.")
-
-
