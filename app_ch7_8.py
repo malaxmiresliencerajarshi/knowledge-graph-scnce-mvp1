@@ -1,4 +1,5 @@
 import json
+import os
 import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
 
@@ -9,6 +10,21 @@ st.set_page_config(
     page_title="NCERT Grades 7–8 – Knowledge Graph",
     layout="wide"
 )
+
+# ----------------------------
+#persistence helper block
+# ----------------------------
+LEARNED_FILE = "learned_concepts.json"
+
+def load_learned_concepts():
+    if os.path.exists(LEARNED_FILE):
+        with open(LEARNED_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_learned_concepts(data):
+    with open(LEARNED_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
 
 # ----------------------------
 # Load data
@@ -25,6 +41,7 @@ def load_all_data():
         "7": grade7,
         "8": grade8
     }
+
 
 ALL_DATA = load_all_data()
 
@@ -45,6 +62,24 @@ concepts = data["concepts"]
 activities = data["activities"]
 concept_map = {c["concept_name"]: c for c in concepts}
 concept_names = set(concept_map.keys())
+
+st.sidebar.markdown("## 📊 Learning Progress")
+
+progress = compute_domain_progress(concepts, learned_store, selected_grade)
+
+for domain, percent in progress.items():
+    st.sidebar.markdown(f"**{domain}**")
+    st.sidebar.progress(percent / 100)
+    st.sidebar.caption(f"{percent}% completed")
+
+# -----------------------------
+# learn store
+# -----------------------------
+learned_store = load_learned_concepts()
+
+if selected_grade not in learned_store:
+    learned_store[selected_grade] = {}
+
 
 # -----------------------------
 # Concepts that have activities
@@ -258,6 +293,31 @@ if selected_concept:
         else:
             st.write("No activities linked to this concept.")
 
+    # -------- Mark as learned checkbox (safe)
+    if selected_concept:
+    concept_domain = selected_concept_data["domain"]
+
+    if concept_domain not in learned_store[selected_grade]:
+        learned_store[selected_grade][concept_domain] = []
+
+    already_learned = selected_concept in learned_store[selected_grade][concept_domain]
+
+    mark_learned = st.checkbox(
+        "Mark concept as learned",
+        value=already_learned,
+        key=f"learned_{selected_grade}_{selected_concept}"
+    )
+
+    if mark_learned and not already_learned:
+        learned_store[selected_grade][concept_domain].append(selected_concept)
+        save_learned_concepts(learned_store)
+
+    if not mark_learned and already_learned:
+        learned_store[selected_grade][concept_domain].remove(selected_concept)
+        save_learned_concepts(learned_store)
+
+
+    
     # -------- Mark as learned (MOVED BELOW activities) --------
     learned = selected_concept in st.session_state.learned_concepts[grade]
 
@@ -273,6 +333,25 @@ if selected_concept:
 
 else:
     st.sidebar.info("Click a concept node to view details.")
+
+def compute_domain_progress(concepts, learned_store, grade):
+    domain_totals = {}
+    domain_learned = {}
+
+    for c in concepts:
+        domain = c["domain"]
+        domain_totals[domain] = domain_totals.get(domain, 0) + 1
+
+    for domain, learned_list in learned_store.get(grade, {}).items():
+        domain_learned[domain] = len(set(learned_list))
+
+    progress = {}
+    for domain in domain_totals:
+        learned = domain_learned.get(domain, 0)
+        total = domain_totals[domain]
+        progress[domain] = round((learned / total) * 100, 1)
+
+    return progress
 
 
 
