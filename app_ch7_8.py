@@ -15,10 +15,10 @@ st.title("📘 NCERT Knowledge Graph (Grades 7 & 8)")
 # -------------------------------------------------
 # LOAD DATA
 # -------------------------------------------------
-with open("grade7_knowledge_base.json", "r", encoding="utf-8") as f:
+with open("data/grade7_knowledge_base.json", "r", encoding="utf-8") as f:
     grade7 = json.load(f)
 
-with open("grade8_knowledge_base.json", "r", encoding="utf-8") as f:
+with open("data/grade8_knowledge_base.json", "r", encoding="utf-8") as f:
     grade8 = json.load(f)
 
 # -------------------------------------------------
@@ -222,3 +222,4 @@ with st.sidebar.expander("🎨 Legend"):
     st.markdown("⬭ **Ellipse** → Strand")
     st.markdown("● **Dot** → Concept")
     st.markdown("⬛ **Dark border** → Has learning activity")
+
