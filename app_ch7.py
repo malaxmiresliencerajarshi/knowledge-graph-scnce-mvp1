@@ -94,6 +94,10 @@ if unlinked_activities:
         st.sidebar.write(f"• {name} (parent → {parent})")
 else:
     st.sidebar.success("All activities are properly linked")
+st.sidebar.markdown("### 🔎 Raw Activity Debug (TEMP)")
+for i, activity in enumerate(activities):
+    if not isinstance(activity, dict) or not activity:
+        st.sidebar.write(f"Index {i}: {activity}")
 
 
 # --------------------------------------------------
@@ -142,4 +146,5 @@ selected = agraph(
 
 # Always overwrite selection (prevents sticky state)
 st.session_state["selected_concept"] = selected
+
 
