@@ -2,254 +2,206 @@ import json
 import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
 
-# ----------------------------
-# Page config
-# ----------------------------
+# -----------------------------------
+# PAGE CONFIG
+# -----------------------------------
 st.set_page_config(
-    page_title="NCERT Grades 7–8 – Knowledge Graph",
+    page_title="NCERT Knowledge Graph (Grades 7–8)",
     layout="wide"
 )
 
-# ----------------------------
-# Load data
-# ----------------------------
-@st.cache_data
-def load_all_data():
-    with open("data/grade7_knowledge_base.json", "r", encoding="utf-8") as f:
-        grade7 = json.load(f)
+st.title("📘 NCERT Knowledge Graph (Grades 7 & 8)")
 
-    with open("data/grade8_knowledge_base.json", "r", encoding="utf-8") as f:
-        grade8 = json.load(f)
+# -----------------------------------
+# LOAD DATA
+# -----------------------------------
+with open("grade7_knowledge_base.json", "r", encoding="utf-8") as f:
+    grade7 = json.load(f)
 
-    return {
-        "7": grade7,
-        "8": grade8
-    }
+with open("grade8_knowledge_base.json", "r", encoding="utf-8") as f:
+    grade8 = json.load(f)
 
-ALL_DATA = load_all_data()
+# -----------------------------------
+# SIDEBAR — GRADE SELECT
+# -----------------------------------
+grade = st.sidebar.radio("Select Grade", ["7", "8"], horizontal=True)
 
-st.sidebar.markdown("## 📘 Curriculum")
-
-grade = st.sidebar.radio(
-    "Select Grade",
-    ["7", "8"],
-    horizontal=True
-)
-
-data = ALL_DATA[grade]
-
+data = grade7 if grade == "7" else grade8
 concepts = data["concepts"]
 activities = data["activities"]
-concept_map = {c["concept_name"]: c for c in concepts}
-concept_names = set(concept_map.keys())
 
-# ----------------------------
-# Session state
-# ----------------------------
-
+# -----------------------------------
+# SESSION STATE
+# -----------------------------------
 if "selected_concept" not in st.session_state:
-    st.session_state.selected_concept = None
-elif st.session_state.selected_concept not in concept_names:
     st.session_state.selected_concept = None
 
 if "learned_concepts" not in st.session_state:
     st.session_state.learned_concepts = {"7": set(), "8": set()}
 
-# ----------------------------
-# Build Tier 1 & Tier 2 structure
-# ----------------------------
-domains = {}
-strands = {}
+learned_set = st.session_state.learned_concepts[grade]
 
-for c in concepts:
-    domains.setdefault(c["domain"], set()).add(c["strand"])
-    strands.setdefault((c["domain"], c["strand"]), []).append(c["concept_name"])
+# -----------------------------------
+# HELPERS
+# -----------------------------------
+concept_map = {c["concept_name"]: c for c in concepts}
+concept_names = set(concept_map.keys())
 
-# ----------------------------
-# Colors (Domain-based)
-# ----------------------------
-DOMAIN_COLORS = {
-    "Physics (The Physical World)": "#1f77b4",
-    "Chemistry (The World of Matter)": "#2ca02c",
-    "Biology (The Living World)": "#ff7f0e",
-    "Earth & Space Science": "#9467bd",
-    "Scientific Inquiry & Investigative Process": "#7f7f7f"
+concepts_with_activities = {
+    a["parent_concept"]
+    for a in activities
+    if a.get("parent_concept") in concept_names
 }
 
-# ----------------------------
-# Build nodes
-# ----------------------------
+# -----------------------------------
+# BUILD NODES
+# -----------------------------------
 nodes = []
 
-# Tier 1 — Domain anchors
-for domain in domains:
-    nodes.append(
-        Node(
-            id=f"domain::{domain}",
-            label=domain,
-            size=45,
-            color=DOMAIN_COLORS.get(domain, "#999999"),
-            font={"size": 20, "bold": True},
-            shape="box"
-        )
-    )
+# --- Tier 1 (Domains) ---
+domains = sorted({c["domain"] for c in concepts})
+for d in domains:
+    nodes.append(Node(
+        id=f"domain::{d}",
+        label=d,
+        size=55,
+        color="#4A148C",
+        shape="box"
+    ))
 
-# Tier 2 — Strand anchors
-for (domain, strand) in strands:
-    nodes.append(
-        Node(
-            id=f"strand::{strand}",
-            label=strand,
-            size=30,
-            color=DOMAIN_COLORS.get(domain, "#bbbbbb"),
-            font={"size": 16},
-            shape="ellipse"
-        )
-    )
+# --- Tier 2 (Strands) ---
+strands = sorted({c["strand"] for c in concepts})
+for s in strands:
+    nodes.append(Node(
+        id=f"strand::{s}",
+        label=s,
+        size=40,
+        color="#6A1B9A",
+        shape="ellipse"
+    ))
 
-# Tier 3 — Concept nodes
+# --- Tier 3 (Concepts) ---
 for c in concepts:
-    nodes.append(
-        Node(
-            id=f"concept::{c['concept_name']}",
-            label=c["concept_name"],
-            size=18,
-            color=DOMAIN_COLORS.get(c["domain"], "#cccccc"),
-            shape="dot"
-        )
-    )
+    name = c["concept_name"]
+    selected = (st.session_state.selected_concept == name)
+    learned = name in learned_set
+    has_activity = name in concepts_with_activities
 
-# ----------------------------
-# Build edges
-# ----------------------------
+    # Color logic
+    if selected:
+        color = "#FF9800"
+    elif learned:
+        color = "#BDBDBD"
+    else:
+        color = "#1f77b4"
+
+    nodes.append(Node(
+        id=f"concept::{name}",
+        label=name,
+        size=42 if selected else 26,
+        color=color,
+        opacity=1.0 if (not st.session_state.selected_concept or selected) else 0.35,
+        borderWidth=3 if has_activity else 1,
+        borderColor="#2ECC71" if has_activity else "#CCCCCC"
+    ))
+
+# -----------------------------------
+# BUILD EDGES
+# -----------------------------------
 edges = []
 
 # Domain → Strand
-for domain, strand_list in domains.items():
-    for strand in strand_list:
-        edges.append(
-            Edge(
-    source=f"domain::{domain}",
-    target=f"strand::{strand}",
-    color="#cccccc"
-)
-        )
+for c in concepts:
+    edges.append(Edge(
+        source=f"domain::{c['domain']}",
+        target=f"strand::{c['strand']}",
+        color="#9C27B0"
+    ))
 
 # Strand → Concept
-for (domain, strand), concept_list in strands.items():
-    for concept in concept_list:
-        edges.append(
-           Edge(
-    source=f"strand::{strand}",
-    target=f"concept::{concept}",
-    color="#dddddd"
-)
-        )
+for c in concepts:
+    edges.append(Edge(
+        source=f"strand::{c['strand']}",
+        target=f"concept::{c['concept_name']}",
+        color="#90CAF9"
+    ))
 
 # Concept ↔ Concept (interconnections)
 for c in concepts:
     for linked in c.get("interconnections", []):
         if linked in concept_names:
-            edges.append(
-                Edge(
-    source=f"concept::{c['concept_name']}",
-    target=f"concept::{linked}",
-    color="#ff9999"
-)
-            )
+            edges.append(Edge(
+                source=f"concept::{c['concept_name']}",
+                target=f"concept::{linked}",
+                color="#FF6F61"
+            ))
 
-# ----------------------------
-# Graph config
-# ----------------------------
+# -----------------------------------
+# RENDER GRAPH
+# -----------------------------------
 config = Config(
-    width="100%",
-    height=750,
+    width=1000,
+    height=700,
     directed=False,
     physics=True,
-    hierarchical=False,
-    nodeHighlightBehavior=True,
-    highlightColor="#F7A7A6"
+    hierarchical=False
 )
 
-# ----------------------------
-# UI layout
-# ----------------------------
-st.markdown(f"## 📘 NCERT Grade {grade} – Knowledge Graph")
+clicked = agraph(nodes=nodes, edges=edges, config=config)
 
-selected = agraph(nodes=nodes, edges=edges, config=config)
-
-# ----------------------------
-# Normalize click result
-# ----------------------------
-clicked = None
-
-if isinstance(selected, dict):
-    if selected.get("nodes"):
-        clicked = selected["nodes"][0]
-elif isinstance(selected, list) and selected:
-    clicked = selected[0]
-elif isinstance(selected, str):
-    clicked = selected
-
-if isinstance(clicked, str) and clicked.startswith("concept::"):
+if clicked and clicked.startswith("concept::"):
     st.session_state.selected_concept = clicked.replace("concept::", "")
 
-# ----------------------------
-# Sidebar — Concept Details
-# ----------------------------
-st.sidebar.markdown("## 🔍 Concept Details")
+# -----------------------------------
+# SIDEBAR — DETAILS
+# -----------------------------------
+st.sidebar.divider()
+st.sidebar.subheader("🔍 Concept Details")
 
-selected_concept = st.session_state.selected_concept
+if st.session_state.selected_concept:
+    c = concept_map[st.session_state.selected_concept]
 
-if selected_concept:
-    concept = concept_map[selected_concept]
-
-    st.sidebar.markdown(f"### {selected_concept}")
-    st.sidebar.write(concept["brief_explanation"])
-
-    st.sidebar.markdown("**Domain**")
-    st.sidebar.write(concept["domain"])
-
-    st.sidebar.markdown("**Strand**")
-    st.sidebar.write(concept["strand"])
+    st.sidebar.markdown(f"### {c['concept_name']}")
+    st.sidebar.write(c["brief_explanation"])
 
     st.sidebar.markdown("**Chapters**")
-    for ch in concept.get("chapter_references", []):
+    for ch in c["chapter_references"]:
         st.sidebar.write(f"• {ch}")
 
+    st.sidebar.markdown("**Concept Type**")
+    st.sidebar.write(c["concept_type"])
+
     st.sidebar.markdown("**Cognitive Level**")
-    st.sidebar.write(concept.get("cognitive_level", "—"))
+    st.sidebar.write(c["cognitive_level"])
 
-# ----------------------------
-# Mark as learned (grade-scoped)
-# ----------------------------
-if selected_concept:
-    learned = selected_concept in st.session_state.learned_concepts[grade]
-
-    checked = st.sidebar.checkbox(
-        "✅ Mark concept as learned",
-        value=learned
-    )
-
-    if checked:
-        st.session_state.learned_concepts[grade].add(selected_concept)
-    else:
-        st.session_state.learned_concepts[grade].discard(selected_concept)
-
-    # ----------------------------
-    # Activities (lightweight)
-    # ----------------------------
-    linked_activities = [
+    linked_acts = [
         a for a in activities
-        if a.get("parent_concept") == selected_concept
+        if a.get("parent_concept") == c["concept_name"]
     ]
 
-    with st.sidebar.expander(f"🧪 Learning Activities ({len(linked_activities)})"):
-        if linked_activities:
-            for a in linked_activities:
-                st.write(f"• {a['activity_name']}")
-        else:
-            st.write("No activities linked to this concept.")
+    if linked_acts:
+        with st.sidebar.expander(f"🧪 Activities ({len(linked_acts)})"):
+            for a in linked_acts:
+                st.markdown(f"**{a['activity_name']}**")
+                st.write(f"Type: {a['activity_type']}")
+                st.write(a["learning_goal"])
+                st.markdown("---")
+
+    learned = c["concept_name"] in learned_set
+    checked = st.sidebar.checkbox("✔ Mark as learned", value=learned)
+
+    if checked:
+        learned_set.add(c["concept_name"])
+    else:
+        learned_set.discard(c["concept_name"])
 
 else:
     st.sidebar.info("Click a concept node to view details.")
+
+# -----------------------------------
+# LEGEND
+# -----------------------------------
+with st.sidebar.expander("🎨 Legend"):
+    st.markdown("🟠 Selected concept")
+    st.markdown("🟢 Green border → Has activities")
+    st.markdown("⚪ Grey → Learned")
