@@ -13,10 +13,10 @@ st.set_page_config(
 # ----------------------------
 # Load data
 # ----------------------------
-with open("grade7_knowledge_base.json", "r", encoding="utf-8") as f:
+with open("data/grade7_knowledge_base.json", "r", encoding="utf-8") as f:
     data_g7 = json.load(f)
 
-with open("grade8_knowledge_base.json", "r", encoding="utf-8") as f:
+with open("data/grade8_knowledge_base.json", "r", encoding="utf-8") as f:
     data_g8 = json.load(f)
 
 DATA_BY_GRADE = {
@@ -220,3 +220,4 @@ else:
         st.session_state.learned_concepts[grade].add(selected_concept)
     else:
         st.session_state.learned_concepts[grade].discard(selected_concept)
+
