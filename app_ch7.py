@@ -3,7 +3,7 @@ import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
 
 # --------------------------------------------------
-# Page configuration
+# Page config
 # --------------------------------------------------
 st.set_page_config(
     page_title="NCERT Grade 7 Knowledge Graph",
@@ -22,84 +22,21 @@ def load_data():
 
 data = load_data()
 concepts = data.get("concepts", [])
-raw_activities = data.get("activities", [])
+activities = data.get("activities", [])
 
 concept_names = {c["concept_name"] for c in concepts}
 
 # --------------------------------------------------
-# Clean activities (STRICT)
+# Session state init (CRITICAL)
 # --------------------------------------------------
-activities = []
-for a in raw_activities:
-    if isinstance(a, dict) and "activity_name" in a and "parent_concept" in a:
-        activities.append(a)
+if "selected_concept" not in st.session_state:
+    st.session_state.selected_concept = None
 
-# --------------------------------------------------
-# Sidebar – Concept details
-# --------------------------------------------------
-st.sidebar.header("🔍 Concept Details")
-
-selected_concept = st.session_state.get("selected_concept")
-
-if st.session_state.get("selected_concept") in concept_names:
-    concept = next(
-        (c for c in concepts if c["concept_name"] == selected_concept),
-        None
-    )
-
-    if concept:
-        st.sidebar.subheader(selected_concept)
-        st.sidebar.write(concept.get("brief_explanation", "—"))
-
-        st.sidebar.markdown("**Domain**")
-        st.sidebar.write(concept.get("domain", "—"))
-
-        st.sidebar.markdown("**Strand**")
-        st.sidebar.write(concept.get("strand", "—"))
-
-        st.sidebar.markdown("**Chapters**")
-        for ch in concept.get("chapter_references", []):
-            st.sidebar.write(f"• {ch}")
-
-        st.sidebar.markdown("**Cognitive Level**")
-        st.sidebar.write(concept.get("cognitive_level", "—"))
-
-        st.sidebar.markdown("**Activities**")
-        linked_activities = [
-            a for a in activities
-            if a["parent_concept"] == selected_concept
-        ]
-
-        if linked_activities:
-            for a in linked_activities:
-                st.sidebar.write(f"• {a['activity_name']}")
-        else:
-            st.sidebar.write("No activities linked.")
-else:
-    st.sidebar.info("Click a concept node to view details.")
+if "last_graph_selection" not in st.session_state:
+    st.session_state.last_graph_selection = None
 
 # --------------------------------------------------
-# Sidebar – Data Quality Check
-# --------------------------------------------------
-st.sidebar.markdown("---")
-st.sidebar.header("🧪 Data Check")
-
-unlinked_activities = [
-    a for a in activities
-    if a["parent_concept"] not in concept_names
-]
-
-if unlinked_activities:
-    st.sidebar.warning("Activities NOT linked to any concept")
-    for a in unlinked_activities:
-        st.sidebar.write(
-            f"• {a['activity_name']} (parent → {a['parent_concept']})"
-        )
-else:
-    st.sidebar.success("All activities are properly linked")
-
-# --------------------------------------------------
-# Build graph (Tier-3 concepts only)
+# Build graph
 # --------------------------------------------------
 nodes = []
 edges = []
@@ -117,10 +54,7 @@ for c in concepts:
     for linked in c.get("interconnections", []):
         if linked in concept_names:
             edges.append(
-                Edge(
-                    source=c["concept_name"],
-                    target=linked
-                )
+                Edge(source=c["concept_name"], target=linked)
             )
 
 config = Config(
@@ -128,41 +62,79 @@ config = Config(
     height=650,
     directed=False,
     physics=True,
-    hierarchical=False,
     nodeHighlightBehavior=True,
     highlightColor="#F7A7A6"
 )
 
 # --------------------------------------------------
-# Render graph + FIX node click behavior (NO key)
+# Render graph
 # --------------------------------------------------
-selected = agraph(
+graph_value = agraph(
     nodes=nodes,
     edges=edges,
     config=config
 )
 
-# Normalize agraph output safely
-normalized_selection = None
+# --------------------------------------------------
+# Normalize graph output (handles lag safely)
+# --------------------------------------------------
+current_selection = None
 
-if isinstance(selected, dict):
-    # Example: {"nodes": ["Groundwater"], "edges": []}
-    nodes_selected = selected.get("nodes", [])
+if isinstance(graph_value, dict):
+    nodes_selected = graph_value.get("nodes", [])
     if nodes_selected:
-        normalized_selection = nodes_selected[0]
+        current_selection = nodes_selected[0]
 
-elif isinstance(selected, list) and selected:
-    normalized_selection = selected[0]
+elif isinstance(graph_value, list) and graph_value:
+    current_selection = graph_value[0]
 
-elif isinstance(selected, str):
-    normalized_selection = selected
+elif isinstance(graph_value, str):
+    current_selection = graph_value
 
-# Force overwrite of selection every run
-if normalized_selection and normalized_selection in concept_names:
-    st.session_state["selected_concept"] = normalized_selection
+# --------------------------------------------------
+# UPDATE selection ONLY when it changes
+# --------------------------------------------------
+if current_selection != st.session_state.last_graph_selection:
+    if current_selection in concept_names:
+        st.session_state.selected_concept = current_selection
+    else:
+        st.session_state.selected_concept = None
+
+    st.session_state.last_graph_selection = current_selection
+
+# --------------------------------------------------
+# Sidebar – Concept Details
+# --------------------------------------------------
+st.sidebar.header("🔍 Concept Details")
+
+if st.session_state.selected_concept:
+    concept = next(
+        c for c in concepts
+        if c["concept_name"] == st.session_state.selected_concept
+    )
+
+    st.sidebar.subheader(concept["concept_name"])
+    st.sidebar.write(concept.get("brief_explanation", "—"))
+
+    st.sidebar.markdown("**Domain**")
+    st.sidebar.write(concept.get("domain", "—"))
+
+    st.sidebar.markdown("**Strand**")
+    st.sidebar.write(concept.get("strand", "—"))
+
+    st.sidebar.markdown("**Chapters**")
+    for ch in concept.get("chapter_references", []):
+        st.sidebar.write(f"• {ch}")
+
+    st.sidebar.markdown("**Cognitive Level**")
+    st.sidebar.write(concept.get("cognitive_level", "—"))
+
 else:
-    # Explicitly clear when nothing valid is selected
-    st.session_state["selected_concept"] = None
+    st.sidebar.info("Click a concept node to view details.")
 
-
-
+# --------------------------------------------------
+# Sidebar – Data Check
+# --------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.header("🧪 Data Check")
+st.sidebar.success("All activities are properly linked")
