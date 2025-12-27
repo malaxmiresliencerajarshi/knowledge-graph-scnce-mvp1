@@ -76,7 +76,7 @@ for c in concepts:
 
 # ---- Domain nodes (HEXAGON)
 for domain in domains:
-    add_node(Node(
+   nodes.append(Node(
     id=f"domain::{domain}",
     label=domain.replace(" (", "\n("),  # forces line break
     shape="hexagon",
@@ -223,3 +223,4 @@ else:
         st.session_state.learned_concepts[grade].add(selected)
     else:
         st.session_state.learned_concepts[grade].discard(selected)
+
