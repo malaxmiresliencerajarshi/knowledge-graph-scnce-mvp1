@@ -63,14 +63,6 @@ activities = data["activities"]
 concept_map = {c["concept_name"]: c for c in concepts}
 concept_names = set(concept_map.keys())
 
-st.sidebar.markdown("## 📊 Learning Progress")
-
-progress = compute_domain_progress(concepts, learned_store, selected_grade)
-
-for domain, percent in progress.items():
-    st.sidebar.markdown(f"**{domain}**")
-    st.sidebar.progress(percent / 100)
-    st.sidebar.caption(f"{percent}% completed")
 
 # -----------------------------
 # learn store
@@ -79,6 +71,14 @@ learned_store = load_learned_concepts()
 
 if selected_grade not in learned_store:
     learned_store[selected_grade] = {}
+st.sidebar.markdown("## 📊 Learning Progress")
+
+progress = compute_domain_progress(concepts, learned_store, selected_grade)
+
+for domain, percent in progress.items():
+    st.sidebar.markdown(f"**{domain}**")
+    st.sidebar.progress(percent / 100)
+    st.sidebar.caption(f"{percent}% completed")
 
 
 # -----------------------------
@@ -293,43 +293,27 @@ if selected_concept:
         else:
             st.write("No activities linked to this concept.")
 
-    # -------- Mark as learned checkbox (safe)
-    if selected_concept:
-    concept_domain = selected_concept_data["domain"]
+# -------- Mark as learned checkbox (PERSISTED)
+concept_domain = concept["domain"]
 
-    if concept_domain not in learned_store[selected_grade]:
-        learned_store[selected_grade][concept_domain] = []
+if concept_domain not in learned_store[grade]:
+    learned_store[grade][concept_domain] = []
 
-    already_learned = selected_concept in learned_store[selected_grade][concept_domain]
+already_learned = selected_concept in learned_store[grade][concept_domain]
 
-    mark_learned = st.checkbox(
-        "Mark concept as learned",
-        value=already_learned,
-        key=f"learned_{selected_grade}_{selected_concept}"
-    )
+mark_learned = st.sidebar.checkbox(
+    "✅ Mark concept as learned",
+    value=already_learned,
+    key=f"learned_{grade}_{selected_concept}"
+)
 
-    if mark_learned and not already_learned:
-        learned_store[selected_grade][concept_domain].append(selected_concept)
-        save_learned_concepts(learned_store)
+if mark_learned and not already_learned:
+    learned_store[grade][concept_domain].append(selected_concept)
+    save_learned_concepts(learned_store)
 
-    if not mark_learned and already_learned:
-        learned_store[selected_grade][concept_domain].remove(selected_concept)
-        save_learned_concepts(learned_store)
-
-
-    
-    # -------- Mark as learned (MOVED BELOW activities) --------
-    learned = selected_concept in st.session_state.learned_concepts[grade]
-
-    checked = st.sidebar.checkbox(
-        "✅ Mark concept as learned",
-        value=learned
-    )
-
-    if checked:
-        st.session_state.learned_concepts[grade].add(selected_concept)
-    else:
-        st.session_state.learned_concepts[grade].discard(selected_concept)
+if not mark_learned and already_learned:
+    learned_store[grade][concept_domain].remove(selected_concept)
+    save_learned_concepts(learned_store)
 
 else:
     st.sidebar.info("Click a concept node to view details.")
@@ -352,6 +336,7 @@ def compute_domain_progress(concepts, learned_store, grade):
         progress[domain] = round((learned / total) * 100, 1)
 
     return progress
+
 
 
 
