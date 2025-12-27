@@ -14,11 +14,13 @@ st.set_page_config(
 # Domain colors (LOCKED)
 # --------------------------------------------------
 DOMAIN_COLORS = {
-    "Physics (The Physical World)": "#2563EB",     # Deep Blue
-    "Chemistry (The World of Matter)": "#16A34A",  # Vibrant Green
-    "Biology (The Living World)": "#F97316",       # Warm Orange
-    "Earth & Space Science": "#8B5CF6"             # Purple
+    "Physics (The Physical World)": "#2563EB",          # Deep Blue
+    "Chemistry (The World of Matter)": "#16A34A",       # Vibrant Green
+    "Biology (The Living World)": "#F97316",            # Warm Orange
+    "Earth & Space Science": "#8B5CF6",                 # Purple
+    "Scientific Inquiry & Investigative Process": "#6B7280"  # Slate Grey
 }
+
 
 # --------------------------------------------------
 # Load data (Grade 7 + Grade 8)
@@ -214,4 +216,5 @@ else:
         st.session_state.learned_concepts[grade].add(selected)
     else:
         st.session_state.learned_concepts[grade].discard(selected)
+
 
