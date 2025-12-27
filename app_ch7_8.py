@@ -159,55 +159,20 @@ config = Config(
 # -----------------------------
 st.title("📘 NCERT Knowledge Graph")
 
-clicked = agraph(
-    nodes=nodes,
-    edges=edges,
-    config=config,
-    return_value="nodes"   # 🔑 REQUIRED
-)
-
-# -----------------------------
-# Handle click
-# -----------------------------
 result = agraph(
     nodes=nodes,
     edges=edges,
     config=config
 )
 
+# ---- Handle node click (agraph v0.0.45 compatible) ----
 if result and isinstance(result, dict):
     clicked_nodes = result.get("nodes", [])
     if clicked_nodes:
         node_id = clicked_nodes[0].get("id", "")
+
         if node_id.startswith("concept::"):
             st.session_state.selected_concept = node_id.replace("concept::", "")
-
-# -----------------------------
-# Sidebar – Concept details
-# -----------------------------
-st.sidebar.markdown("## 🔎 Concept Details")
-
-if selected and selected in concept_map:
-    c = concept_map[selected]
-
-    st.sidebar.subheader(selected)
-    st.sidebar.write(c.get("brief_explanation", ""))
-    st.sidebar.markdown(f"**Concept Type:** {c.get('concept_type', '-')}")
-    st.sidebar.markdown(f"**Cognitive Level:** {c.get('cognitive_level', '-')}")
-    st.sidebar.markdown("**Chapters:**")
-    for ch in c.get("chapter_references", []):
-        st.sidebar.write(f"• {ch}")
-
-    st.sidebar.checkbox(
-        "Mark concept as learned",
-        value=selected in st.session_state.learned,
-        key=f"learn_{selected}",
-        on_change=lambda: (
-            st.session_state.learned.add(selected)
-            if st.session_state.get(f"learn_{selected}")
-            else st.session_state.learned.discard(selected)
-        )
-    )
 
     # ---- Activities dropdown
     acts = activities_by_concept.get(selected, [])
@@ -221,5 +186,4 @@ if selected and selected in concept_map:
 
 else:
     st.sidebar.info("Click a concept node to view details.")
-
 
