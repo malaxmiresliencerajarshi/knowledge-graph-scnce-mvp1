@@ -13,7 +13,7 @@ st.set_page_config(
 # ----------------------------
 # Load data
 # ----------------------------
-with open("grade7_knowledge_base.json", "r", encoding="utf-8") as f:
+with open("data/grade7_knowledge_base.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
 concepts = data["concepts"]
@@ -219,3 +219,4 @@ if selected_concept:
 
 else:
     st.sidebar.info("Click a concept node to view details.")
+
