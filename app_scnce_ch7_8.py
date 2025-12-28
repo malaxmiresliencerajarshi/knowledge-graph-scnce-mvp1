@@ -45,9 +45,14 @@ def gemini_explain(context):
     prompt = f"""{context}
 
 Task:
-Explain this concept in simple language with a real-life example and give a cue for driving curiosity about the concept  .
-Limit to 150 words.
+-Explain this concept clearly in simple language with a real-life example.
+-If learning activities are provided, explain how doing those activities helps understanding.
+-Give a cue for driving curiosity about the concept
+-Limit to about 100-150 words.
+CONTEXT:
+{context}
 """
+  
     return safe_generate(prompt)
 
 def gemini_quiz(context):
@@ -305,4 +310,5 @@ if st.session_state.selected_concept:
         st.sidebar.write(answer)
 else:
     st.sidebar.info("Select a concept to use AI assistance.")
+
 
