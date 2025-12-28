@@ -21,7 +21,7 @@ def safe_generate(prompt: str) -> str:
 
 def build_context(concept, activities, grade):
     ctx = f"""
-You are an expert NCERT teacher.
+You are an expert teacher of Indian school curriculum interacting with students of age 10 years to 12 years.
 
 Grade: {grade}
 Concept: {concept['concept_name']}
@@ -45,7 +45,7 @@ def gemini_explain(context):
     prompt = f"""{context}
 
 Task:
-Explain this concept in simple language with one real-life example.
+Explain this concept in simple language with a real-life example and give a cue for driving curiosity about the concept  .
 Limit to 150 words.
 """
     return safe_generate(prompt)
@@ -55,8 +55,8 @@ def gemini_quiz(context):
 
 Task:
 Create 3 questions:
-1. Easy
-2. Medium
+1. Easy (recall)
+2. Medium (understanding)
 3. Application-based
 Do NOT provide answers.
 """
@@ -305,3 +305,4 @@ if st.session_state.selected_concept:
         st.sidebar.write(answer)
 else:
     st.sidebar.info("Select a concept to use AI assistance.")
+
