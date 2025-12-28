@@ -431,13 +431,35 @@ if st.session_state.selected_concept:
         ["Explain", "Connect concepts", "Quiz me"]
     )
 
-    if st.sidebar.button("Ask Gemini"):
-        with st.sidebar.spinner("Thinking..."):
-            concept = concept_map[st.session_state.selected_concept]
+  if st.sidebar.button("Ask Gemini"):
+    with st.spinner("Thinking..."):
+        concept = concept_map[st.session_state.selected_concept]
 
-            linked_acts = [
-                a for a in activities
-                if a.get("parent_concept") == concept["concept_name"]
+        linked_acts = [
+            a for a in activities
+            if a.get("parent_concept") == concept["concept_name"]
+        ]
+
+        prompt = f"""
+Grade {grade}
+Concept: {concept['concept_name']}
+Explanation: {concept['brief_explanation']}
+Activities: {[a['activity_name'] for a in linked_acts]}
+"""
+
+        if mode == "Explain":
+            prompt += "\nExplain this concept clearly with a real-life example."
+        elif mode == "Connect concepts":
+            prompt += "\nExplain how this connects to other subjects and real life."
+        else:
+            prompt += "\nCreate 3 quiz questions (easy, medium, hard)."
+
+        answer = safe_generate(prompt)
+
+    # OUTPUT stays in sidebar
+    st.sidebar.markdown("### 🤖 Gemini says")
+    st.sidebar.write(answer)
+
             ]
 
             context = build_gemini_context(
@@ -467,4 +489,5 @@ with st.sidebar.expander("📊 Learning Progress", expanded=False):
         st.markdown(f"**{domain}**")
         st.progress(percent / 100)
         st.caption(f"{percent}% completed")
+
 
