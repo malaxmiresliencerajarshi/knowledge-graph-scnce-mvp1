@@ -2,10 +2,117 @@ import json
 import os
 import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
+
 import google.generativeai as genai
 
+# -----------------------------------
+# Gemini Setup
+# -----------------------------------
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+gemini_model = genai.GenerativeModel(
+    model_name="gemini-2.5-flash-lite"
+)
+
+# -----------------------------------
+# Temp Debug
+# -----------------------------------
+st.sidebar.markdown("### 🔍 Gemini Debug")
+
+if "GOOGLE_API_KEY" in os.environ:
+    st.sidebar.success("API key loaded")
+else:
+    st.sidebar.error("API key NOT found")
+
+
+# -----------------------------------
+# Gemini helpers (CLEAN & SAFE)
+# -----------------------------------
+
+def safe_generate(prompt):
+    try:
+        response = gemini_model.generate_content(prompt)
+
+        if not response:
+            return "⚠️ Gemini returned no response."
+
+        if hasattr(response, "text") and response.text:
+            return response.text[:1200]
+
+        return "⚠️ Gemini responded, but no text was generated."
+
+    except Exception as e:
+        return f"❌ Gemini error: {e}"
+
+
+
+def build_gemini_context(concept, activities, grade):
+    context = f"""
+You are an expert teacher following the NCERT curriculum.
+
+Grade: {grade}
+Concept: {concept['concept_name']}
+
+Explanation:
+{concept['brief_explanation']}
+
+Concept Type: {concept['concept_type']}
+Cognitive Level: {concept['cognitive_level']}
+
+Chapters:
+{", ".join(concept['chapter_references'])}
+"""
+
+    if activities:
+        context += "\nLearning Activities:\n"
+        for a in activities:
+            context += f"- {a['activity_name']}: {a['learning_goal']}\n"
+
+    return context.strip()
+
+
+def gemini_explain(context):
+    prompt = f"""
+{context}
+
+Task:
+Explain this concept to a student in simple language.
+Use one real-life example.
+Keep it under 150 words.
+"""
+    return safe_generate(prompt)
+
+
+def gemini_connect(context):
+    prompt = f"""
+{context}
+
+Task:
+Explain how this concept connects to:
+- other subjects (maths, language, social science)
+- real-life situations
+
+Keep the explanation short and clear.
+"""
+    return safe_generate(prompt)
+
+
+def gemini_quiz(context):
+    prompt = f"""
+{context}
+
+Task:
+Create 3 questions to check understanding:
+1. Easy (recall)
+2. Medium (understanding)
+3. Challenging (application)
+
+Do not provide answers.
+"""
+    return safe_generate(prompt)
+
 # ==================================================
-# PAGE CONFIG
+# Page config
 # ==================================================
 st.set_page_config(
     page_title="NCERT Knowledge Graph (Grades 7–8)",
@@ -13,37 +120,7 @@ st.set_page_config(
 )
 
 # ==================================================
-# GEMINI SETUP (CORRECT)
-# ==================================================
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-
-MODEL_NAME = "gemini-2.0-flash-lite"
-model = genai.GenerativeModel(MODEL_NAME)
-
-def safe_generate(prompt: str) -> str:
-    try:
-        resp = model.generate_content(prompt)
-        if hasattr(resp, "text") and resp.text:
-            return resp.text.strip()
-        return "⚠️ Gemini returned an empty response."
-    except Exception as e:
-        return f"❌ Gemini error: {e}"
-
-# ==================================================
-# DATA LOAD
-# ==================================================
-@st.cache_data
-def load_data():
-    with open("data/grade7_knowledge_base.json", encoding="utf-8") as f:
-        g7 = json.load(f)
-    with open("data/grade8_knowledge_base.json", encoding="utf-8") as f:
-        g8 = json.load(f)
-    return {"7": g7, "8": g8}
-
-DATA = load_data()
-
-# ==================================================
-# CONSTANTS
+# Constants
 # ==================================================
 DOMAIN_COLORS = {
     "Physics (The Physical World)": "#1f77b4",
@@ -56,42 +133,82 @@ DOMAIN_COLORS = {
 LEARNED_FILE = "learned_concepts.json"
 
 # ==================================================
-# LEARNED STATE
+# Persistence helpers
 # ==================================================
-def load_learned():
+def load_learned_concepts():
     if os.path.exists(LEARNED_FILE):
         with open(LEARNED_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
-def save_learned(data):
+def save_learned_concepts(data):
     with open(LEARNED_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
-learned_store = load_learned()
+def compute_domain_progress(concepts, learned_store, grade):
+    domain_totals = {}
+    domain_learned = {}
+
+    for c in concepts:
+        domain_totals[c["domain"]] = domain_totals.get(c["domain"], 0) + 1
+
+    for domain, learned_list in learned_store.get(grade, {}).items():
+        domain_learned[domain] = len(set(learned_list))
+
+    progress = {}
+    for domain, total in domain_totals.items():
+        learned = domain_learned.get(domain, 0)
+        progress[domain] = round((learned / total) * 100, 1)
+
+    return progress
 
 # ==================================================
-# SIDEBAR — GRADE
+# Load curriculum data
 # ==================================================
-st.sidebar.title("📘 Curriculum")
-grade = st.sidebar.radio("Select Grade", ["7", "8"], horizontal=True)
+@st.cache_data
+def load_all_data():
+    with open("data/grade7_knowledge_base.json", "r", encoding="utf-8") as f:
+        g7 = json.load(f)
+    with open("data/grade8_knowledge_base.json", "r", encoding="utf-8") as f:
+        g8 = json.load(f)
+    return {"7": g7, "8": g8}
 
-concepts = DATA[grade]["concepts"]
-activities = DATA[grade]["activities"]
+ALL_DATA = load_all_data()
+
+# ==================================================
+# Sidebar — Grade selection
+# ==================================================
+st.sidebar.markdown("## 📘 Curriculum")
+
+grade = st.sidebar.radio(
+    "Select Grade",
+    ["7", "8"],
+    horizontal=True
+)
+
+data = ALL_DATA[grade]
+concepts = data["concepts"]
+activities = data["activities"]
 
 concept_map = {c["concept_name"]: c for c in concepts}
 concept_names = set(concept_map.keys())
 
+# ==================================================
+# Learned state init
+# ==================================================
+learned_store = load_learned_concepts()
 learned_store.setdefault(grade, {})
 
 # ==================================================
-# SESSION STATE
+# Session state (click stability)
 # ==================================================
 if "selected_concept" not in st.session_state:
     st.session_state.selected_concept = None
+elif st.session_state.selected_concept not in concept_names:
+    st.session_state.selected_concept = None
 
 # ==================================================
-# BUILD HIERARCHY
+# Build hierarchy
 # ==================================================
 domains = {}
 strands = {}
@@ -105,7 +222,7 @@ concepts_with_activities = {
 }
 
 # ==================================================
-# BUILD NODES
+# Nodes
 # ==================================================
 nodes = []
 
@@ -131,19 +248,22 @@ for (domain, strand) in strands:
 
 for c in concepts:
     name = c["concept_name"]
+    domain = c["domain"]
     has_activity = name in concepts_with_activities
+
     nodes.append(Node(
         id=f"concept::{name}",
         label=name,
-        size=18,
         shape="dot",
-        color=DOMAIN_COLORS.get(c["domain"]),
-        borderWidth=4 if has_activity else 1,
-        borderColor="#000000" if has_activity else "#cccccc"
+        size=18,
+        color=DOMAIN_COLORS.get(domain),
+        borderColor="#111827" if has_activity else DOMAIN_COLORS.get(domain),
+        borderWidth=3 if has_activity else 1,
+        font={"size": 12}
     ))
 
 # ==================================================
-# BUILD EDGES
+# Edges
 # ==================================================
 edges = []
 
@@ -156,10 +276,10 @@ for domain, strand_set in domains.items():
         ))
 
 for (domain, strand), clist in strands.items():
-    for cname in clist:
+    for c in clist:
         edges.append(Edge(
             source=f"strand::{strand}",
-            target=f"concept::{cname}",
+            target=f"concept::{c}",
             color="#dddddd"
         ))
 
@@ -173,7 +293,7 @@ for c in concepts:
             ))
 
 # ==================================================
-# GRAPH CONFIG
+# Graph config
 # ==================================================
 config = Config(
     width="100%",
@@ -181,95 +301,152 @@ config = Config(
     directed=False,
     physics=True,
     nodeHighlightBehavior=True,
-    highlightColor="#FFD700",
+    highlightColor="#F7A7A6",
+
+    # 🔥 SPACING CONTROL
     physics_config={
         "forceAtlas2Based": {
             "gravitationalConstant": -150,
+            "centralGravity": 0.01,
             "springLength": 180,
+            "springConstant": 0.05,
             "avoidOverlap": 2.0
         },
-        "stabilization": {"enabled": True, "iterations": 120}
+        "maxVelocity": 30,
+        "minVelocity": 0.1,
+        "solver": "forceAtlas2Based",
+        "stabilization": {
+            "enabled": True,
+            "iterations": 150
+        }
     }
 )
 
+
 # ==================================================
-# RENDER GRAPH
+# Render graph
 # ==================================================
 st.title(f"📘 NCERT Knowledge Graph — Grade {grade}")
+
 selected = agraph(nodes=nodes, edges=edges, config=config)
 
+# Normalize click
 clicked = None
 if isinstance(selected, dict) and selected.get("nodes"):
     clicked = selected["nodes"][0]
+elif isinstance(selected, list) and selected:
+    clicked = selected[0]
+elif isinstance(selected, str):
+    clicked = selected
 
 if isinstance(clicked, str) and clicked.startswith("concept::"):
     st.session_state.selected_concept = clicked.replace("concept::", "")
 
 # ==================================================
-# SIDEBAR — CONCEPT DETAILS
+# Sidebar — Concept details
 # ==================================================
-st.sidebar.header("🔍 Concept Details")
+st.sidebar.markdown("## 🔍 Concept Details")
 
-if st.session_state.selected_concept:
-    concept = concept_map[st.session_state.selected_concept]
+selected_concept = st.session_state.selected_concept
 
-    st.sidebar.subheader(concept["concept_name"])
-    st.sidebar.write(concept["brief_explanation"])
-    st.sidebar.caption(f"Type: {concept['concept_type']} | Level: {concept['cognitive_level']}")
+if selected_concept:
+    concept = concept_map[selected_concept]
+    domain = concept["domain"]
 
-    st.sidebar.markdown("**Chapters**")
-    for ch in concept["chapter_references"]:
-        st.sidebar.write(f"• {ch}")
+    st.sidebar.markdown(f"### {selected_concept}")
 
-    linked_acts = [a for a in activities if a["parent_concept"] == concept["concept_name"]]
+    with st.sidebar.expander("📘 Concept Details", expanded=False):
+        st.write("**Brief Explanation**")
+        st.write(concept.get("brief_explanation", "—"))
 
-    with st.sidebar.expander(f"🧪 Activities ({len(linked_acts)})"):
-        if linked_acts:
-            for a in linked_acts:
-                st.markdown(f"**{a['activity_name']}**")
-                st.write(a["learning_goal"])
+        st.write("**Chapter References**")
+        for ch in concept.get("chapter_references", []):
+            st.write(f"• {ch}")
+
+        st.write("**Concept Type**")
+        st.write(concept.get("concept_type", "—"))
+
+        st.write("**Cognitive Level**")
+        st.write(concept.get("cognitive_level", "—"))
+
+    linked_activities = [
+        a for a in activities if a.get("parent_concept") == selected_concept
+    ]
+
+    with st.sidebar.expander(f"🧪 Activity Details ({len(linked_activities)})"):
+        if linked_activities:
+            for a in linked_activities:
+                st.markdown(f"**{a.get('activity_name')}**")
+                st.write(f"• Activity Type: {a.get('activity_type')}")
+                st.write(f"• Learning Goal: {a.get('learning_goal')}")
+                st.markdown("---")
         else:
             st.write("No activities linked.")
 
-    learned_store[grade].setdefault(concept["domain"], [])
-    is_learned = concept["concept_name"] in learned_store[grade][concept["domain"]]
+    learned_store[grade].setdefault(domain, [])
+    already_learned = selected_concept in learned_store[grade][domain]
 
-    if st.sidebar.checkbox("✅ Mark concept as learned", value=is_learned):
-        if not is_learned:
-            learned_store[grade][concept["domain"]].append(concept["concept_name"])
-            save_learned(learned_store)
-    else:
-        if is_learned:
-            learned_store[grade][concept["domain"]].remove(concept["concept_name"])
-            save_learned(learned_store)
+    mark_learned = st.sidebar.checkbox(
+        "✅ Mark concept as learned",
+        value=already_learned,
+        key=f"learned_{grade}_{selected_concept}"
+    )
 
-# ==================================================
-# GEMINI AI ASSISTANT (WORKING)
-# ==================================================
+    if mark_learned and not already_learned:
+        learned_store[grade][domain].append(selected_concept)
+        save_learned_concepts(learned_store)
+
+    if not mark_learned and already_learned:
+        learned_store[grade][domain].remove(selected_concept)
+        save_learned_concepts(learned_store)
+
+# ======================
+# Sidebar — GEMINI UI 
+# ======================
 st.sidebar.divider()
 st.sidebar.subheader("🤖 AI Learning Assistant")
 
 if st.session_state.selected_concept:
-    mode = st.sidebar.radio("Choose action", ["Explain", "Connect concepts", "Quiz me"])
+    mode = st.sidebar.radio(
+        "What would you like to do?",
+        ["Explain", "Connect concepts", "Quiz me"]
+    )
 
     if st.sidebar.button("Ask Gemini"):
         with st.sidebar.spinner("Thinking..."):
-            ctx = f"""
-Grade {grade}
-Concept: {concept['concept_name']}
-Explanation: {concept['brief_explanation']}
-Activities: {[a['activity_name'] for a in linked_acts]}
-"""
-            if mode == "Explain":
-                prompt = ctx + "\nExplain this concept simply with a real-life example."
-            elif mode == "Connect concepts":
-                prompt = ctx + "\nExplain connections to other subjects and real life."
-            else:
-                prompt = ctx + "\nCreate 3 quiz questions (easy, medium, hard)."
+            concept = concept_map[st.session_state.selected_concept]
 
-            answer = safe_generate(prompt)
+            linked_acts = [
+                a for a in activities
+                if a.get("parent_concept") == concept["concept_name"]
+            ]
+
+            context = build_gemini_context(
+                concept,
+                linked_acts,
+                grade
+            )
+
+            if mode == "Explain":
+                response = gemini_explain(context)
+            elif mode == "Connect concepts":
+                response = gemini_connect(context)
+            else:
+                response = gemini_quiz(context)
 
         st.sidebar.markdown("### Gemini says")
-        st.sidebar.write(answer)
+        st.sidebar.write(response)
 else:
     st.sidebar.info("Select a concept to use AI assistance.")
+
+# ==================================================
+# Sidebar — Learning progress (DROPDOWN)
+# ==================================================
+with st.sidebar.expander("📊 Learning Progress", expanded=False):
+    progress = compute_domain_progress(concepts, learned_store, grade)
+    for domain, percent in progress.items():
+        st.markdown(f"**{domain}**")
+        st.progress(percent / 100)
+        st.caption(f"{percent}% completed")
+
+
