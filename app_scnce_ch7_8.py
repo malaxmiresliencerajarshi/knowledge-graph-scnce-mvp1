@@ -400,6 +400,25 @@ if selected_concept:
         learned_store[grade][domain].remove(selected_concept)
         save_learned_concepts(learned_store)
 
+st.sidebar.markdown("### 🧪 Gemini Hard Test")
+
+if st.sidebar.button("Test Gemini Now"):
+    try:
+        resp = gemini_model.generate_content(
+            "Say hello and confirm you are working."
+        )
+
+        st.sidebar.success("Gemini call executed")
+
+        if hasattr(resp, "text"):
+            st.sidebar.write(resp.text)
+        else:
+            st.sidebar.write(str(resp))
+
+    except Exception as e:
+        st.sidebar.error(f"Gemini failed: {e}")
+
+
 # ======================
 # Sidebar — GEMINI UI 
 # ======================
@@ -448,6 +467,7 @@ with st.sidebar.expander("📊 Learning Progress", expanded=False):
         st.markdown(f"**{domain}**")
         st.progress(percent / 100)
         st.caption(f"{percent}% completed")
+
 
 
 
