@@ -420,7 +420,7 @@ if st.sidebar.button("Test Gemini Now"):
 
 
 # ======================
-# Sidebar — GEMINI UI 
+# Sidebar — GEMINI UI
 # ======================
 st.sidebar.divider()
 st.sidebar.subheader("🤖 AI Learning Assistant")
@@ -431,35 +431,13 @@ if st.session_state.selected_concept:
         ["Explain", "Connect concepts", "Quiz me"]
     )
 
-  if st.sidebar.button("Ask Gemini"):
-    with st.spinner("Thinking..."):
-        concept = concept_map[st.session_state.selected_concept]
+    if st.sidebar.button("Ask Gemini"):
+        with st.spinner("Thinking..."):
+            concept = concept_map[st.session_state.selected_concept]
 
-        linked_acts = [
-            a for a in activities
-            if a.get("parent_concept") == concept["concept_name"]
-        ]
-
-        prompt = f"""
-Grade {grade}
-Concept: {concept['concept_name']}
-Explanation: {concept['brief_explanation']}
-Activities: {[a['activity_name'] for a in linked_acts]}
-"""
-
-        if mode == "Explain":
-            prompt += "\nExplain this concept clearly with a real-life example."
-        elif mode == "Connect concepts":
-            prompt += "\nExplain how this connects to other subjects and real life."
-        else:
-            prompt += "\nCreate 3 quiz questions (easy, medium, hard)."
-
-        answer = safe_generate(prompt)
-
-    # OUTPUT stays in sidebar
-    st.sidebar.markdown("### 🤖 Gemini says")
-    st.sidebar.write(answer)
-
+            linked_acts = [
+                a for a in activities
+                if a.get("parent_concept") == concept["concept_name"]
             ]
 
             context = build_gemini_context(
@@ -475,10 +453,12 @@ Activities: {[a['activity_name'] for a in linked_acts]}
             else:
                 response = gemini_quiz(context)
 
-        st.sidebar.markdown("### Gemini says")
+        st.sidebar.markdown("### 🤖 Gemini says")
         st.sidebar.write(response)
+
 else:
     st.sidebar.info("Select a concept to use AI assistance.")
+
 
 # ==================================================
 # Sidebar — Learning progress (DROPDOWN)
@@ -489,5 +469,6 @@ with st.sidebar.expander("📊 Learning Progress", expanded=False):
         st.markdown(f"**{domain}**")
         st.progress(percent / 100)
         st.caption(f"{percent}% completed")
+
 
 
