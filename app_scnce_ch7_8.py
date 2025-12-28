@@ -19,7 +19,7 @@ gemini_model = genai.GenerativeModel(
 # -----------------------------------
 st.sidebar.markdown("### 🔍 Gemini Debug")
 
-if "GOOGLE_API_KEY" in os.environ:
+if "GEMINI_API_KEY" in os.environ:
     st.sidebar.success("API key loaded")
 else:
     st.sidebar.error("API key NOT found")
@@ -448,6 +448,7 @@ with st.sidebar.expander("📊 Learning Progress", expanded=False):
         st.markdown(f"**{domain}**")
         st.progress(percent / 100)
         st.caption(f"{percent}% completed")
+
 
 
 
