@@ -15,8 +15,15 @@ gemini_model = genai.GenerativeModel(
 )
 
 # -----------------------------------
-# CURRICULUM-AWARE PROMPTS
+# Gemini helpers (CLEAN & SAFE)
 # -----------------------------------
+
+def safe_generate(prompt):
+    response = gemini_model.generate_content(prompt)
+    if hasattr(response, "text") and response.text:
+        return response.text[:1200]
+    return "No response generated."
+
 
 def build_gemini_context(concept, activities, grade):
     context = f"""
@@ -52,15 +59,8 @@ Explain this concept to a student in simple language.
 Use one real-life example.
 Keep it under 150 words.
 """
-  def safe_generate(prompt):
-    response = gemini_model.generate_content(prompt)
-    return response.text[:1200]
-    
     return safe_generate(prompt)
 
-# -----------------------------------
-# GEMINI ACTION PROMPTS
-# -----------------------------------
 
 def gemini_connect(context):
     prompt = f"""
@@ -89,7 +89,6 @@ Create 3 questions to check understanding:
 Do not provide answers.
 """
     return safe_generate(prompt)
-
 
 # ==================================================
 # Page config
@@ -428,6 +427,7 @@ with st.sidebar.expander("📊 Learning Progress", expanded=False):
         st.markdown(f"**{domain}**")
         st.progress(percent / 100)
         st.caption(f"{percent}% completed")
+
 
 
 
