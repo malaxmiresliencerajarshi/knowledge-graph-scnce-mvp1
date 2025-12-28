@@ -3,6 +3,94 @@ import os
 import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
 
+import google.generativeai as genai
+
+# -----------------------------------
+# Gemini Setup
+# -----------------------------------
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+gemini_model = genai.GenerativeModel(
+    model_name="gemini-2.5-flash-lite"
+)
+
+# -----------------------------------
+# CURRICULUM-AWARE PROMPTS
+# -----------------------------------
+
+def build_gemini_context(concept, activities, grade):
+    context = f"""
+You are an expert teacher following the NCERT curriculum.
+
+Grade: {grade}
+Concept: {concept['concept_name']}
+
+Explanation:
+{concept['brief_explanation']}
+
+Concept Type: {concept['concept_type']}
+Cognitive Level: {concept['cognitive_level']}
+
+Chapters:
+{", ".join(concept['chapter_references'])}
+"""
+
+    if activities:
+        context += "\nLearning Activities:\n"
+        for a in activities:
+            context += f"- {a['activity_name']}: {a['learning_goal']}\n"
+
+    return context.strip()
+
+
+def gemini_explain(context):
+    prompt = f"""
+{context}
+
+Task:
+Explain this concept to a student in simple language.
+Use one real-life example.
+Keep it under 150 words.
+"""
+  def safe_generate(prompt):
+    response = gemini_model.generate_content(prompt)
+    return response.text[:1200]
+    
+    return safe_generate(prompt)
+
+# -----------------------------------
+# GEMINI ACTION PROMPTS
+# -----------------------------------
+
+def gemini_connect(context):
+    prompt = f"""
+{context}
+
+Task:
+Explain how this concept connects to:
+- other subjects (maths, language, social science)
+- real-life situations
+
+Keep the explanation short and clear.
+"""
+    return safe_generate(prompt)
+
+
+def gemini_quiz(context):
+    prompt = f"""
+{context}
+
+Task:
+Create 3 questions to check understanding:
+1. Easy (recall)
+2. Medium (understanding)
+3. Challenging (application)
+
+Do not provide answers.
+"""
+    return safe_generate(prompt)
+
+
 # ==================================================
 # Page config
 # ==================================================
@@ -292,6 +380,45 @@ if selected_concept:
         learned_store[grade][domain].remove(selected_concept)
         save_learned_concepts(learned_store)
 
+# ======================
+# Sidebar — GEMINI UI 
+# ======================
+st.sidebar.divider()
+st.sidebar.subheader("🤖 AI Learning Assistant")
+
+if st.session_state.selected_concept:
+    mode = st.sidebar.radio(
+        "What would you like to do?",
+        ["Explain", "Connect concepts", "Quiz me"]
+    )
+
+    if st.sidebar.button("Ask Gemini"):
+        with st.sidebar.spinner("Thinking..."):
+            concept = concept_map[st.session_state.selected_concept]
+
+            linked_acts = [
+                a for a in activities
+                if a.get("parent_concept") == concept["concept_name"]
+            ]
+
+            context = build_gemini_context(
+                concept,
+                linked_acts,
+                grade
+            )
+
+            if mode == "Explain":
+                response = gemini_explain(context)
+            elif mode == "Connect concepts":
+                response = gemini_connect(context)
+            else:
+                response = gemini_quiz(context)
+
+        st.sidebar.markdown("### Gemini says")
+        st.sidebar.write(response)
+else:
+    st.sidebar.info("Select a concept to use AI assistance.")
+
 # ==================================================
 # Sidebar — Learning progress (DROPDOWN)
 # ==================================================
@@ -301,5 +428,6 @@ with st.sidebar.expander("📊 Learning Progress", expanded=False):
         st.markdown(f"**{domain}**")
         st.progress(percent / 100)
         st.caption(f"{percent}% completed")
+
 
 
