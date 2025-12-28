@@ -59,7 +59,7 @@ def gemini_quiz(context):
     prompt = f"""{context}
 
 Task:
-Create 3 questions:
+Assume students are somewhat familiar with the concept, give a cue about it in one sentence. Create 3 questions:
 1. Easy (recall)
 2. Medium (understanding)
 3. Application-based
@@ -310,5 +310,6 @@ if st.session_state.selected_concept:
         st.sidebar.write(answer)
 else:
     st.sidebar.info("Select a concept to use AI assistance.")
+
 
 
