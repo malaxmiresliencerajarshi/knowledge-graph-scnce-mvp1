@@ -15,14 +15,35 @@ gemini_model = genai.GenerativeModel(
 )
 
 # -----------------------------------
+# Temp Debug
+# -----------------------------------
+st.sidebar.markdown("### 🔍 Gemini Debug")
+
+if "GOOGLE_API_KEY" in os.environ:
+    st.sidebar.success("API key loaded")
+else:
+    st.sidebar.error("API key NOT found")
+
+
+# -----------------------------------
 # Gemini helpers (CLEAN & SAFE)
 # -----------------------------------
 
 def safe_generate(prompt):
-    response = gemini_model.generate_content(prompt)
-    if hasattr(response, "text") and response.text:
-        return response.text[:1200]
-    return "No response generated."
+    try:
+        response = gemini_model.generate_content(prompt)
+
+        if not response:
+            return "⚠️ Gemini returned no response."
+
+        if hasattr(response, "text") and response.text:
+            return response.text[:1200]
+
+        return "⚠️ Gemini responded, but no text was generated."
+
+    except Exception as e:
+        return f"❌ Gemini error: {e}"
+
 
 
 def build_gemini_context(concept, activities, grade):
@@ -427,6 +448,7 @@ with st.sidebar.expander("📊 Learning Progress", expanded=False):
         st.markdown(f"**{domain}**")
         st.progress(percent / 100)
         st.caption(f"{percent}% completed")
+
 
 
 
