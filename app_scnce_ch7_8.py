@@ -406,7 +406,18 @@ if selected_concept:
 st.sidebar.divider()
 st.sidebar.subheader("🤖 AI Learning Assistant")
 
+# Initialize session state for the response if it doesn't exist
+if "gemini_response" not in st.session_state:
+    st.session_state.gemini_response = None
+if "last_concept" not in st.session_state:
+    st.session_state.last_concept = None
+
 if st.session_state.selected_concept:
+    # If the user selects a NEW concept, clear the old answer
+    if st.session_state.last_concept != st.session_state.selected_concept:
+        st.session_state.gemini_response = None
+        st.session_state.last_concept = st.session_state.selected_concept
+
     mode = st.sidebar.radio(
         "What would you like to do?",
         ["Explain", "Connect concepts", "Quiz me"]
@@ -433,9 +444,15 @@ if st.session_state.selected_concept:
                 response = gemini_connect(context)
             else:
                 response = gemini_quiz(context)
+            
+            # Save response to session state so it persists
+            st.session_state.gemini_response = response
 
+    # Display the response from session state (outside the button block)
+    if st.session_state.gemini_response:
         st.sidebar.markdown("### Gemini says")
-        st.sidebar.write(response)
+        st.sidebar.write(st.session_state.gemini_response)
+
 else:
     st.sidebar.info("Select a concept to use AI assistance.")
 
@@ -448,6 +465,7 @@ with st.sidebar.expander("📊 Learning Progress", expanded=False):
         st.markdown(f"**{domain}**")
         st.progress(percent / 100)
         st.caption(f"{percent}% completed")
+
 
 
 
